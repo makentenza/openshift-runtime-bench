@@ -57,7 +57,10 @@ COPY scripts/ /bench/
 RUN chmod -R +x /bench && chgrp -R 0 /bench && chmod -R g=u /bench
 
 # Arbitrary-UID friendly HOME; /tmp is the only guaranteed-writable location.
+# WORKDIR /tmp so any tool that writes to the current directory (e.g. stress-ng's
+# default --temp-path) lands somewhere writable under the restricted-v2 SCC.
 ENV HOME=/tmp
+WORKDIR /tmp
 
 USER 1001
 

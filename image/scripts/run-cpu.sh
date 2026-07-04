@@ -66,7 +66,10 @@ run_stress_ng_bogo() {
 
   rm -f "$SNG_YAML"
   local rc=0
-  stress-ng --"$stressor" "$THREADS" -t "${DURATION}s" --metrics -Y "$SNG_YAML" >&2 || rc=$?
+  # --temp-path /tmp: stress-ng writes scratch files to its temp path (default
+  # is the cwd, which is not writable under the restricted-v2 arbitrary UID).
+  stress-ng --"$stressor" "$THREADS" -t "${DURATION}s" --temp-path /tmp \
+    --metrics -Y "$SNG_YAML" >&2 || rc=$?
   if ((rc != 0)); then
     # Some stressors report a non-zero exit for partial failures (e.g. the
     # syscall stressor hitting seccomp-blocked syscalls under the default

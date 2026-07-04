@@ -71,7 +71,10 @@ run_stress_ng_stream() {
 
   rm -f "$SNG_YAML"
   local rc=0
-  stress-ng --stream "$THREADS" -t "${DURATION}s" --metrics -Y "$SNG_YAML" >&2 || rc=$?
+  # --temp-path /tmp: stress-ng scratch files must land somewhere writable by
+  # the restricted-v2 arbitrary UID (its default is the non-writable cwd).
+  stress-ng --stream "$THREADS" -t "${DURATION}s" --temp-path /tmp \
+    --metrics -Y "$SNG_YAML" >&2 || rc=$?
   if ((rc != 0)); then
     log "WARNING: stress-ng --stream exited ${rc}; attempting to parse metrics anyway"
   fi
@@ -115,7 +118,8 @@ run_stress_ng_fault() {
 
   rm -f "$SNG_YAML"
   local rc=0
-  stress-ng --fault "$THREADS" -t "${DURATION}s" --metrics -Y "$SNG_YAML" >&2 || rc=$?
+  stress-ng --fault "$THREADS" -t "${DURATION}s" --temp-path /tmp \
+    --metrics -Y "$SNG_YAML" >&2 || rc=$?
   if ((rc != 0)); then
     log "WARNING: stress-ng --fault exited ${rc}; attempting to parse metrics anyway"
   fi
