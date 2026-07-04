@@ -1,0 +1,94 @@
+# manifests/jobs/disk-pvc-job.yaml
+#
+# Disk benchmark against a filesystem-mode PVC (provider persistent storage).
+# Multi-doc: PVC (volumeMode Filesystem) + Job running /bench/run-disk.sh with
+# TARGET_MODE=fs against the PVC mounted at /bench-data.
+# envsubst template. Expects: NAMESPACE, BENCH_IMAGE, RUNTIME,
+# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME, BENCH_CPU,
+# BENCH_MEMORY, ITERATIONS, DURATION, STORAGE_CLASS_SPEC (empty for the
+# cluster default StorageClass), PVC_SIZE.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bench-pvc-fs-${RUNTIME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+    bench: disk
+    runtime: ${RUNTIME}
+spec:
+  ${STORAGE_CLASS_SPEC}
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: ${PVC_SIZE}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bench-disk-pvc-${RUNTIME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+    bench: disk
+    runtime: ${RUNTIME}
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: runtime-bench
+        bench: disk
+        runtime: ${RUNTIME}
+    spec:
+      ${RUNTIME_CLASS_SPEC}
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: ${NODE_NAME}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bench
+          image: ${BENCH_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["/bench/run-disk.sh"]
+          env:
+            - name: RUNTIME
+              value: "${RUNTIME}"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ITERATIONS
+              value: "${ITERATIONS}"
+            - name: DURATION
+              value: "${DURATION}"
+            - name: THREADS
+              value: "${BENCH_CPU}"
+            - name: TARGET_MODE
+              value: "fs"
+            - name: TARGET_DIR
+              value: "/bench-data"
+          resources:
+            requests:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+            limits:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /bench-data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: bench-pvc-fs-${RUNTIME}

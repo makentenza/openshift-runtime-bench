@@ -1,0 +1,70 @@
+# manifests/jobs/network-client-job.yaml
+#
+# Network benchmark client Job (iperf3 throughput + qperf latency). Runs
+# /bench/run-network.sh with MODE=client against the iperf3 server pod IP
+# (SERVER_HOST) — pod IP directly, no Service, to keep kube-proxy/OVN service
+# DNAT out of the measured path. Deploy manifests/servers/iperf3-server.yaml
+# first and resolve its pod IP into SERVER_HOST.
+# envsubst template. Expects: NAMESPACE, BENCH_IMAGE, RUNTIME,
+# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME, SERVER_HOST,
+# BENCH_CPU, BENCH_MEMORY, ITERATIONS, DURATION.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bench-network-client-${RUNTIME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+    bench: network
+    runtime: ${RUNTIME}
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: runtime-bench
+        bench: network
+        runtime: ${RUNTIME}
+    spec:
+      ${RUNTIME_CLASS_SPEC}
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: ${NODE_NAME}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bench
+          image: ${BENCH_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["/bench/run-network.sh"]
+          env:
+            - name: RUNTIME
+              value: "${RUNTIME}"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ITERATIONS
+              value: "${ITERATIONS}"
+            - name: DURATION
+              value: "${DURATION}"
+            - name: THREADS
+              value: "${BENCH_CPU}"
+            - name: MODE
+              value: "client"
+            - name: SERVER_HOST
+              value: "${SERVER_HOST}"
+          resources:
+            requests:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+            limits:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

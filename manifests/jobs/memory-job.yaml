@@ -1,0 +1,63 @@
+# manifests/jobs/memory-job.yaml
+#
+# Memory benchmark Job. Runs /bench/run-memory.sh from the benchmark image and
+# emits RESULT_JSON lines on stdout. Guaranteed QoS (requests == limits).
+# envsubst template. Expects: NAMESPACE, BENCH_IMAGE, RUNTIME,
+# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME, BENCH_CPU,
+# BENCH_MEMORY, ITERATIONS, DURATION.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bench-memory-${RUNTIME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+    bench: memory
+    runtime: ${RUNTIME}
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: runtime-bench
+        bench: memory
+        runtime: ${RUNTIME}
+    spec:
+      ${RUNTIME_CLASS_SPEC}
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: ${NODE_NAME}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bench
+          image: ${BENCH_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["/bench/run-memory.sh"]
+          env:
+            - name: RUNTIME
+              value: "${RUNTIME}"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ITERATIONS
+              value: "${ITERATIONS}"
+            - name: DURATION
+              value: "${DURATION}"
+            - name: THREADS
+              value: "${BENCH_CPU}"
+          resources:
+            requests:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+            limits:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

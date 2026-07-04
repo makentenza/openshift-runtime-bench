@@ -1,0 +1,39 @@
+# manifests/build/build.yaml
+#
+# In-cluster build of the benchmark image: ImageStream + BuildConfig (Docker
+# strategy, builds image/Containerfile from the Git repo).
+# envsubst template. Expects: NAMESPACE.
+#
+# Trigger with:  oc start-build runtime-bench -n ${NAMESPACE} --follow
+# After the build completes, the image is available to pods in-cluster as:
+#   BENCH_IMAGE=image-registry.openshift-image-registry.svc:5000/${NAMESPACE}/runtime-bench:latest
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: runtime-bench
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: runtime-bench
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/makentenza/openshift-runtime-bench.git
+      ref: main
+    contextDir: image
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: runtime-bench:latest

@@ -1,0 +1,79 @@
+# manifests/servers/nginx-server.yaml
+#
+# Application benchmark server Deployment. Runs /bench/run-app.sh with
+# MODE=server: nginx serving on 8080/tcp (non-privileged port, restricted-v2
+# compatible). No Service object — clients target the pod IP directly
+# (resolve it into SERVER_HOST for the app client Job). Guaranteed QoS so the
+# server is never the throttled side. Strategy Recreate: the pod is pinned to
+# one node with reserved resources, so a rolling update would deadlock.
+# envsubst template. Expects: NAMESPACE, BENCH_IMAGE, SERVER_RUNTIME,
+# SERVER_RUNTIME_CLASS_SPEC (empty when SERVER_RUNTIME=crun),
+# SERVER_NODE_NAME, BENCH_CPU, BENCH_MEMORY, ITERATIONS, DURATION.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-server-${SERVER_RUNTIME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+    bench: app
+    runtime: ${SERVER_RUNTIME}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: runtime-bench
+      bench: app
+      runtime: ${SERVER_RUNTIME}
+  template:
+    metadata:
+      labels:
+        app: runtime-bench
+        bench: app
+        runtime: ${SERVER_RUNTIME}
+    spec:
+      ${SERVER_RUNTIME_CLASS_SPEC}
+      nodeSelector:
+        kubernetes.io/hostname: ${SERVER_NODE_NAME}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bench
+          image: ${BENCH_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["/bench/run-app.sh"]
+          env:
+            - name: MODE
+              value: "server"
+            - name: RUNTIME
+              value: "${SERVER_RUNTIME}"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ITERATIONS
+              value: "${ITERATIONS}"
+            - name: DURATION
+              value: "${DURATION}"
+            - name: THREADS
+              value: "${BENCH_CPU}"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+            limits:
+              cpu: "${BENCH_CPU}"
+              memory: "${BENCH_MEMORY}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

@@ -1,0 +1,13 @@
+# Benchmark output (keep the directory, ignore the runs)
+results/*
+!results/.gitkeep
+
+# Local environment overrides (copy scripts/env.example.sh -> scripts/env.sh)
+scripts/env.sh
+
+# OS / editor noise
+.DS_Store
+
+# Python
+*.pyc
+__pycache__/

@@ -1,0 +1,66 @@
+# openshift-runtime-bench — benchmark toolbox image
+#
+# A single image containing every tool used by the cpu / memory / disk /
+# network / app suites, plus the server-side processes (iperf3, qperf, nginx).
+# The same image is used for clients, servers, the pre-pull DaemonSet and the
+# startup-time probe pod, so image pull cost is paid exactly once per node.
+#
+# Build in-cluster (recommended, keeps the image inside the cluster registry):
+#   oc apply -f manifests/build/build.yaml
+#
+# Or build locally and push:
+#   podman build -t quay.io/<you>/runtime-bench:latest image/
+#
+# NOTE for Apple Silicon (arm64) workstations: cluster worker nodes are
+# typically x86_64 — you MUST build with an explicit platform or the image
+# will not run on the cluster:
+#   podman build --platform linux/amd64 -t <registry>/runtime-bench:latest image/
+
+FROM registry.fedoraproject.org/fedora:42
+
+LABEL org.opencontainers.image.source="https://github.com/makentenza/openshift-runtime-bench" \
+      org.opencontainers.image.description="Benchmark toolbox for measuring OpenShift runtime overhead (Kata Containers vs crun): sysbench, stress-ng, fio, iperf3, qperf, nginx, ab" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+# Single layer with every benchmark tool and helper the suite scripts need:
+#   fio          — disk I/O
+#   iperf3/qperf — network throughput and latency
+#   sysbench     — CPU and memory microbenchmarks
+#   stress-ng    — CPU / scheduler / page-fault / STREAM stressors
+#   nginx        — app-suite HTTP server
+#   httpd-tools  — provides `ab` (ApacheBench) for the app-suite client
+#   jq/python3   — result parsing and RESULT_JSON envelope construction
+#   procps-ng, iproute, hostname, util-linux, bc, findutils — script utilities
+RUN dnf -y install \
+      bc \
+      findutils \
+      fio \
+      hostname \
+      httpd-tools \
+      iperf3 \
+      iproute \
+      jq \
+      nginx \
+      procps-ng \
+      python3 \
+      qperf \
+      stress-ng \
+      sysbench \
+      util-linux \
+    && dnf clean all \
+    && rm -rf /var/cache
+
+COPY scripts/ /bench/
+
+# OpenShift restricted-v2 runs containers with an arbitrary UID and GID 0:
+# make /bench group-owned by root and group-permission-identical to owner.
+RUN chmod -R +x /bench && chgrp -R 0 /bench && chmod -R g=u /bench
+
+# Arbitrary-UID friendly HOME; /tmp is the only guaranteed-writable location.
+ENV HOME=/tmp
+
+USER 1001
+
+# Default is an idle process; jobs/servers override command/args to run
+# /bench/run-<suite>.sh. The pre-pull DaemonSet and startup pod use this CMD.
+CMD ["sleep", "infinity"]

@@ -1,0 +1,10 @@
+# manifests/namespace.yaml
+#
+# Namespace for all runtime-bench resources.
+# envsubst template. Expects: NAMESPACE (default: runtime-bench).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${NAMESPACE}
+  labels:
+    app: runtime-bench

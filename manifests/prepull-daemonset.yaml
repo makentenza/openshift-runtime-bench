@@ -1,0 +1,52 @@
+# manifests/prepull-daemonset.yaml
+#
+# DaemonSet that pre-pulls the benchmark image onto every node (the pod just
+# sleeps; the pull is the point). Run this and wait for rollout BEFORE any
+# startup-time measurement so image pull time is excluded from the measured
+# pod lifecycle. Intentionally has NO runtimeClassName: it always runs with the
+# cluster default runtime; the image lands in the node image store either way.
+# envsubst template. Expects: NAMESPACE, BENCH_IMAGE.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bench-prepull
+  namespace: ${NAMESPACE}
+  labels:
+    app: runtime-bench
+    bench: prepull
+spec:
+  selector:
+    matchLabels:
+      app: runtime-bench
+      bench: prepull
+  template:
+    metadata:
+      labels:
+        app: runtime-bench
+        bench: prepull
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: prepull
+          image: ${BENCH_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
