@@ -8,7 +8,8 @@
 # comparable across runtimes. Pre-pull the image first
 # (manifests/prepull-daemonset.yaml) so pull time is excluded.
 # envsubst template. Expects: NAMESPACE, BENCH_IMAGE, POD_NAME, RUNTIME,
-# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME.
+# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME, PODVM_ANNOTATION
+# (empty unless a kata-remote pod-VM instance type is pinned).
 apiVersion: v1
 kind: Pod
 metadata:
@@ -18,6 +19,8 @@ metadata:
     app: runtime-bench
     bench: startup
     runtime: ${RUNTIME}
+  annotations:
+    ${PODVM_ANNOTATION}
 spec:
   ${RUNTIME_CLASS_SPEC}
   restartPolicy: Never

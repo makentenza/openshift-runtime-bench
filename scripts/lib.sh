@@ -102,6 +102,12 @@ PVC_SIZE="${PVC_SIZE:-10Gi}"
 ITERATIONS="${ITERATIONS:-3}"
 DURATION="${DURATION:-30}"
 STORAGE_CLASS="${STORAGE_CLASS:-}"
+# Optional: pin the peer-pods (kata-remote) pod-VM instance type. Empty means
+# let the Cloud API Adaptor auto-select from PODVM_INSTANCE_TYPES. Set this when
+# auto-selection is unsuitable — e.g. a mixed-architecture instance-type list
+# where the adaptor may pick an instance whose arch does not match the pod-VM
+# image. Only applied to kata-remote pods (see derive_runtime_spec).
+POD_VM_INSTANCE_TYPE="${POD_VM_INSTANCE_TYPE:-}"
 
 RUNTIME="${RUNTIME:-}"
 SERVER_RUNTIME="${SERVER_RUNTIME:-crun}"
@@ -112,13 +118,14 @@ POD_NAME="${POD_NAME:-}"
 RUNTIME_CLASS_SPEC="${RUNTIME_CLASS_SPEC:-}"
 SERVER_RUNTIME_CLASS_SPEC="${SERVER_RUNTIME_CLASS_SPEC:-}"
 STORAGE_CLASS_SPEC="${STORAGE_CLASS_SPEC:-}"
+PODVM_ANNOTATION="${PODVM_ANNOTATION:-}"
 RUN_LABEL="${RUN_LABEL:-run}"
 
 # --- Template rendering ----------------------------------------------------------
 # Explicit allowlist: envsubst substitutes ONLY these variables, so stray
 # dollar signs anywhere in the manifests are never mangled.
 # shellcheck disable=SC2016
-RENDER_VARS='${NAMESPACE} ${BENCH_IMAGE} ${RUNTIME} ${RUNTIME_CLASS_SPEC} ${NODE_NAME} ${SERVER_RUNTIME} ${SERVER_RUNTIME_CLASS_SPEC} ${SERVER_NODE_NAME} ${SERVER_HOST} ${BENCH_CPU} ${BENCH_MEMORY} ${STORAGE_CLASS_SPEC} ${PVC_SIZE} ${ITERATIONS} ${DURATION} ${POD_NAME}'
+RENDER_VARS='${NAMESPACE} ${BENCH_IMAGE} ${RUNTIME} ${RUNTIME_CLASS_SPEC} ${NODE_NAME} ${SERVER_RUNTIME} ${SERVER_RUNTIME_CLASS_SPEC} ${SERVER_NODE_NAME} ${SERVER_HOST} ${BENCH_CPU} ${BENCH_MEMORY} ${STORAGE_CLASS_SPEC} ${PVC_SIZE} ${ITERATIONS} ${DURATION} ${POD_NAME} ${PODVM_ANNOTATION}'
 
 # derive_runtime_spec — turn RUNTIME / SERVER_RUNTIME / STORAGE_CLASS into the
 # *_SPEC template fragments and export everything envsubst needs.
@@ -164,10 +171,27 @@ derive_runtime_spec() {
     STORAGE_CLASS_SPEC=""
   fi
 
+  # Peer-pods (kata-remote) pod-VM instance-type pin. The Cloud API Adaptor
+  # reads io.katacontainers.config.hypervisor.machine_type as the cloud instance
+  # type. It is meaningless (and wrong) for on-node kata, where machine_type is
+  # the QEMU machine model, so only emit it for kata-remote. Empty otherwise, so
+  # the templated `annotations:` block renders as null.
+  PODVM_ANNOTATION=""
+  if [ -n "${POD_VM_INSTANCE_TYPE}" ]; then
+    case "${RUNTIME}" in
+      kata-remote)
+        PODVM_ANNOTATION="io.katacontainers.config.hypervisor.machine_type: \"${POD_VM_INSTANCE_TYPE}\""
+        ;;
+      *)
+        warn "POD_VM_INSTANCE_TYPE='${POD_VM_INSTANCE_TYPE}' is ignored for runtime '${RUNTIME}' (it only applies to kata-remote peer pods)"
+        ;;
+    esac
+  fi
+
   export NAMESPACE BENCH_IMAGE RUNTIME RUNTIME_CLASS_SPEC NODE_NAME \
     SERVER_RUNTIME SERVER_RUNTIME_CLASS_SPEC SERVER_NODE_NAME SERVER_HOST \
     BENCH_CPU BENCH_MEMORY STORAGE_CLASS_SPEC PVC_SIZE ITERATIONS DURATION \
-    POD_NAME
+    POD_NAME PODVM_ANNOTATION
 }
 
 # render FILE — envsubst the manifest to stdout using the allowlist.
@@ -181,7 +205,7 @@ render() {
   export NAMESPACE BENCH_IMAGE RUNTIME RUNTIME_CLASS_SPEC NODE_NAME \
     SERVER_RUNTIME SERVER_RUNTIME_CLASS_SPEC SERVER_NODE_NAME SERVER_HOST \
     BENCH_CPU BENCH_MEMORY STORAGE_CLASS_SPEC PVC_SIZE ITERATIONS DURATION \
-    POD_NAME
+    POD_NAME PODVM_ANNOTATION
   envsubst "${RENDER_VARS}" < "$file"
 }
 

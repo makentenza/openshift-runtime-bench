@@ -72,6 +72,7 @@ while [ $# -gt 0 ]; do
     --settle)    SETTLE_S="${2:?--settle needs a value}"; shift 2 ;;
     --label)     RUN_LABEL="${2:?--label needs a value}"; shift 2 ;;
     --namespace) NAMESPACE="${2:?--namespace needs a value}"; shift 2 ;;
+    --podvm-instance-type) POD_VM_INSTANCE_TYPE="${2:?--podvm-instance-type needs a value}"; shift 2 ;;
     -h | --help) usage; exit 0 ;;
     *)
       usage >&2

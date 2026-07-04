@@ -6,7 +6,7 @@
 # DNAT out of the measured path. Deploy manifests/servers/iperf3-server.yaml
 # first and resolve its pod IP into SERVER_HOST.
 # envsubst template. Expects: NAMESPACE, BENCH_IMAGE, RUNTIME,
-# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME, SERVER_HOST,
+# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), PODVM_ANNOTATION (empty unless a kata-remote pod-VM instance type is pinned), NODE_NAME, SERVER_HOST,
 # BENCH_CPU, BENCH_MEMORY, ITERATIONS, DURATION.
 apiVersion: batch/v1
 kind: Job
@@ -25,6 +25,8 @@ spec:
         app: runtime-bench
         bench: network
         runtime: ${RUNTIME}
+      annotations:
+        ${PODVM_ANNOTATION}
     spec:
       ${RUNTIME_CLASS_SPEC}
       restartPolicy: Never

@@ -3,7 +3,7 @@
 # Memory benchmark Job. Runs /bench/run-memory.sh from the benchmark image and
 # emits RESULT_JSON lines on stdout. Guaranteed QoS (requests == limits).
 # envsubst template. Expects: NAMESPACE, BENCH_IMAGE, RUNTIME,
-# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME, BENCH_CPU,
+# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), PODVM_ANNOTATION (empty unless a kata-remote pod-VM instance type is pinned), NODE_NAME, BENCH_CPU,
 # BENCH_MEMORY, ITERATIONS, DURATION.
 apiVersion: batch/v1
 kind: Job
@@ -22,6 +22,8 @@ spec:
         app: runtime-bench
         bench: memory
         runtime: ${RUNTIME}
+      annotations:
+        ${PODVM_ANNOTATION}
     spec:
       ${RUNTIME_CLASS_SPEC}
       restartPolicy: Never

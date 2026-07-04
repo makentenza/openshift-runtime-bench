@@ -4,7 +4,7 @@
 # Multi-doc: PVC (volumeMode Filesystem) + Job running /bench/run-disk.sh with
 # TARGET_MODE=fs against the PVC mounted at /bench-data.
 # envsubst template. Expects: NAMESPACE, BENCH_IMAGE, RUNTIME,
-# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), NODE_NAME, BENCH_CPU,
+# RUNTIME_CLASS_SPEC (empty when RUNTIME=crun), PODVM_ANNOTATION (empty unless a kata-remote pod-VM instance type is pinned), NODE_NAME, BENCH_CPU,
 # BENCH_MEMORY, ITERATIONS, DURATION, STORAGE_CLASS_SPEC (empty for the
 # cluster default StorageClass), PVC_SIZE.
 apiVersion: v1
@@ -42,6 +42,8 @@ spec:
         app: runtime-bench
         bench: disk
         runtime: ${RUNTIME}
+      annotations:
+        ${PODVM_ANNOTATION}
     spec:
       ${RUNTIME_CLASS_SPEC}
       restartPolicy: Never

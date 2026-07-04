@@ -36,6 +36,12 @@ Suite selection:
   --block              also run the raw-block PVC disk job
   --storage-class SC   StorageClass for --pvc/--block PVCs
                        (default: cluster default StorageClass)
+  --podvm-instance-type TYPE
+                       kata-remote only: pin the peer-pods pod-VM cloud instance
+                       type (e.g. t3.large) instead of letting the Cloud API
+                       Adaptor auto-select. Use when the adaptor's instance-type
+                       list can pick an architecture that mismatches the pod-VM
+                       image. Ignored for crun/kata.
 
 Network/app topology:
   --server-node NODE   node for the iperf3/nginx server pods (default: same
@@ -83,6 +89,7 @@ while [ $# -gt 0 ]; do
     --pvc)            RUN_PVC=1; shift ;;
     --block)          RUN_BLOCK=1; shift ;;
     --storage-class)  STORAGE_CLASS="${2:?--storage-class needs a value}"; shift 2 ;;
+    --podvm-instance-type) POD_VM_INSTANCE_TYPE="${2:?--podvm-instance-type needs a value}"; shift 2 ;;
     --server-node)    SERVER_NODE_NAME="${2:?--server-node needs a value}"; shift 2 ;;
     --server-runtime) SERVER_RUNTIME="${2:?--server-runtime needs a value}"; shift 2 ;;
     --label)          RUN_LABEL="${2:?--label needs a value}"; shift 2 ;;
